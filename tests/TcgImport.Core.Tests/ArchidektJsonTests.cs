@@ -19,7 +19,7 @@ public class ArchidektJsonTests
           ],
           "cards": [
             { "quantity": 1, "categories": ["Commander"], "companion": false, "deletedAt": null,
-              "card": { "oracleCard": { "name": "The Legend of Kyoshi // Avatar Kyoshi", "colorIdentity": ["Green"] } } },
+              "card": { "uid": "kyoshi-printing", "oracleCard": { "name": "The Legend of Kyoshi // Avatar Kyoshi", "colorIdentity": ["Green"] } } },
             { "quantity": 1, "categories": ["Ramp", "Commander"], "companion": false, "deletedAt": null,
               "card": { "oracleCard": { "name": "Partner Commander", "colorIdentity": ["Blue"] } } },
             { "quantity": 3, "categories": ["Ramp"], "companion": false, "deletedAt": null,
@@ -52,6 +52,7 @@ public class ArchidektJsonTests
         Assert.Equal(DeckSection.Sideboard, sections["Duress"]);
         Assert.Equal(DeckSection.Sideboard, sections["Lurrus of the Dream-Den"]);
         Assert.DoesNotContain("Removed Card", sections.Keys);
+        Assert.Equal("kyoshi-printing", deck.Cards[0].PrintingId);
     }
 
     [Fact]
@@ -69,7 +70,7 @@ public class ArchidektJsonTests
     }
 
     [Fact]
-    public void ParseSearch_skips_private_decks_and_reads_paging()
+    public void ParseSearch_flags_private_decks_and_reads_paging()
     {
         const string json = """
             {
@@ -86,7 +87,10 @@ public class ArchidektJsonTests
 
         var page = ArchidektJson.ParseSearch(json);
 
-        var deck = Assert.Single(page.Decks);
+        Assert.Equal(2, page.Decks.Count);
+        Assert.True(page.Decks[1].IsPrivate);
+        var deck = page.Decks[0];
+        Assert.False(deck.IsPrivate);
         Assert.Equal("Public", deck.Name);
         Assert.Equal("custom.webp", deck.ImageUrl);
         Assert.Equal("UR", deck.Colors);

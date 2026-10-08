@@ -1,4 +1,5 @@
 using TcgImport.Core.Archidekt;
+using TcgImport.Core.Printings;
 using TcgImport.Core.Storage;
 
 namespace TcgImport.Core.Tests;
@@ -14,7 +15,7 @@ public sealed class AppStateStoreTests : IDisposable
         var state = new AppStateStore(StatePath).Load();
 
         Assert.Empty(state.Favorites);
-        Assert.Null(state.OwnerUsername);
+        Assert.Empty(state.BlockedSets);
     }
 
     [Fact]
@@ -24,11 +25,11 @@ public sealed class AppStateStoreTests : IDisposable
         var favorite = new DeckSummary(27052078, "Xavier", "ISummonPotOfGreed", 3,
             DateTimeOffset.Parse("2026-10-04T09:44:25Z"), "https://img/x.webp", "UG");
 
-        store.Save(new AppState { Favorites = [favorite], OwnerUsername = "ISummonPotOfGreed" });
+        store.Save(new AppState { Favorites = [favorite], BlockedSets = [new("fin", IncludeRelated: false)] });
         var loaded = store.Load();
 
         Assert.Equal(favorite, Assert.Single(loaded.Favorites));
-        Assert.Equal("ISummonPotOfGreed", loaded.OwnerUsername);
+        Assert.Equal(new BlockedSet("fin", IncludeRelated: false), Assert.Single(loaded.BlockedSets));
     }
 
     [Fact]

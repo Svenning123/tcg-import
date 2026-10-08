@@ -10,7 +10,8 @@ public sealed record DeckSummary(
     int? DeckFormat,
     DateTimeOffset UpdatedAt,
     string? ImageUrl,
-    string Colors)
+    string Colors,
+    bool IsPrivate = false)
 {
     [JsonIgnore] public string FormatName => DeckFormats.Name(DeckFormat);
     [JsonIgnore] public string ArchidektUrl => $"https://archidekt.com/decks/{Id}";

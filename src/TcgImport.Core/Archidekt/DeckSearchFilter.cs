@@ -19,12 +19,16 @@ public sealed record DeckSearchFilter
 
     public string? CommanderName { get; init; }
     public string? CardName { get; init; }
+
+    /// <summary>Only decks the signed-in user has bookmarked. Ignored by Archidekt when signed out.</summary>
+    public bool Bookmarks { get; init; }
+
     public DeckSortOrder OrderBy { get; init; } = DeckSortOrder.RecentlyUpdated;
 
     public bool HasCriteria =>
         !string.IsNullOrWhiteSpace(Name) || !string.IsNullOrWhiteSpace(OwnerUsername) ||
         DeckFormat is not null || EdhBracket is not null || !string.IsNullOrWhiteSpace(Colors) ||
-        !string.IsNullOrWhiteSpace(CommanderName) || !string.IsNullOrWhiteSpace(CardName);
+        !string.IsNullOrWhiteSpace(CommanderName) || !string.IsNullOrWhiteSpace(CardName) || Bookmarks;
 
     public string ToQueryString(int page, int pageSize)
     {
@@ -40,6 +44,7 @@ public sealed record DeckSearchFilter
         AddIfSet(query, "edhBracket", EdhBracket?.ToString());
         AddIfSet(query, "commanderName", CommanderName);
         AddIfSet(query, "cardName", CardName);
+        if (Bookmarks) query.Add(("bookmarks", "true"));
 
         var colors = ColorLetters(Colors);
         if (colors.Length > 0)

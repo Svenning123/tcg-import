@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Net.Http;
+using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using TcgImport.App.Services;
 using TcgImport.Core.Archidekt;
+using TcgImport.Core.Printings;
 using TcgImport.Core.Storage;
 using TcgImport.Core.TcgArena;
 
@@ -13,6 +16,8 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private const int SearchTab = 0;
 
+    private const int CommanderFormat = 3;
+
     private readonly ArchidektClient _archidekt;
     private readonly AppStateStore _store;
     private readonly AppState _state;
@@ -21,14 +26,26 @@ public sealed partial class MainViewModel : ObservableObject
     // The search that "Load more" continues.
     private DeckSearchFilter _searchFilter = new();
     private int _searchPage;
+    private int _accountPage;
 
-    public MainViewModel(ArchidektClient archidekt, AppStateStore store)
+    public MainViewModel(ArchidektClient archidekt, TcgArenaCardIndexStore cardIndex, SetCatalogStore setCatalog, AppStateStore store)
     {
         _archidekt = archidekt;
         _store = store;
         _state = store.Load();
-        _ownerUsername = _state.OwnerUsername ?? "";
+        Printings = new PrintingsViewModel(_state, store, cardIndex, setCatalog, message => Status = message);
+        CommanderSuggestions = (text, ct) => _archidekt.SearchCardNamesAsync(text, legendaryFirst: true, ct);
+        CardSuggestions = (text, ct) => _archidekt.SearchCardNamesAsync(text, legendaryFirst: false, ct);
         ClearFilters();
+        _selectedAccountView = AccountViews[0];
+
+        if (SessionProtector.Unprotect(_state.ProtectedArchidektSession) is { } session)
+        {
+            _archidekt.RestoreSession(session);
+            _isSignedIn = true;
+            _signedInAs = session.Username;
+        }
+        _archidekt.SessionChanged += OnSessionChanged;
 
         foreach (var summary in _state.Favorites)
         {
@@ -44,14 +61,105 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<DeckItemViewModel> Results { get; } = [];
     public ObservableCollection<DeckItemViewModel> Favorites { get; } = [];
+    public ObservableCollection<DeckItemViewModel> AccountDecks { get; } = [];
+
+    public PrintingsViewModel Printings { get; }
+
+    // Autocomplete for the commander and card filters, using Archidekt's card search.
+    public Func<string, CancellationToken, Task<IReadOnlyList<string>>> CommanderSuggestions { get; }
+    public Func<string, CancellationToken, Task<IReadOnlyList<string>>> CardSuggestions { get; }
+
+    /// <summary>Loads the set list and the signed-in user's decks once the window is up.</summary>
+    public async Task InitializeAsync()
+    {
+        await Printings.InitializeAsync();
+        if (IsSignedIn) await RunAsync(() => LoadAccountDecksAsync(append: false));
+    }
 
     /// <summary>Deck name, deck id, or an archidekt.com/decks/... link.</summary>
     [ObservableProperty] private string _query = "";
-    [ObservableProperty] private string _ownerUsername;
+    [ObservableProperty] private string _ownerUsername = "";
     [ObservableProperty] private string _status;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _canLoadMore;
     [ObservableProperty] private int _selectedTab;
+
+
+    // Archidekt account tab.
+    public IReadOnlyList<FilterOption<bool>> AccountViews { get; } = [new("My decks", false), new("My bookmarks", true)];
+
+    [ObservableProperty] private bool _isSignedIn;
+    [ObservableProperty] private string? _signedInAs;
+    [ObservableProperty] private string _signInName = "";
+    [ObservableProperty] private FilterOption<bool> _selectedAccountView;
+    [ObservableProperty] private bool _canLoadMoreAccount;
+
+    partial void OnSelectedAccountViewChanged(FilterOption<bool> value)
+    {
+        if (IsSignedIn) _ = RunAsync(() => LoadAccountDecksAsync(append: false));
+    }
+
+    /// <summary>Called from the window, which owns the password box; the password is never stored.</summary>
+    public Task SignInAsync(string password) => RunAsync(async () =>
+    {
+        if (string.IsNullOrWhiteSpace(SignInName) || string.IsNullOrEmpty(password))
+        {
+            Status = "Enter your Archidekt username or email and your password.";
+            return;
+        }
+        Status = "Signing in to Archidekt…";
+        await _archidekt.SignInAsync(SignInName, password);
+        Status = $"Signed in to Archidekt as {SignedInAs}.";
+        await LoadAccountDecksAsync(append: false);
+    });
+
+    [RelayCommand]
+    private void SignOut()
+    {
+        _archidekt.SignOut();
+        Status = "Signed out of Archidekt.";
+    }
+
+    [RelayCommand]
+    private Task RefreshAccountAsync() => RunAsync(() => LoadAccountDecksAsync(append: false));
+
+    [RelayCommand]
+    private Task LoadMoreAccountAsync() => RunAsync(() => LoadAccountDecksAsync(append: true));
+
+    private async Task LoadAccountDecksAsync(bool append)
+    {
+        if (_archidekt.Session is not { } session) return;
+
+        var bookmarks = SelectedAccountView.Value;
+        var filter = bookmarks ? new DeckSearchFilter { Bookmarks = true } : new DeckSearchFilter { OwnerUsername = session.Username };
+        var page = append ? _accountPage + 1 : 1;
+        var result = await _archidekt.SearchAsync(filter, page);
+        _accountPage = page;
+
+        if (!append) AccountDecks.Clear();
+        foreach (var summary in result.Decks)
+        {
+            var item = Item(summary);
+            if (!AccountDecks.Contains(item)) AccountDecks.Add(item);
+        }
+        CanLoadMoreAccount = result.HasMore;
+        Status = AccountDecks.Count == 0
+            ? (bookmarks ? "You haven't bookmarked any decks on Archidekt." : "You don't have any decks on Archidekt yet.")
+            : $"{AccountDecks.Count} {(bookmarks ? "bookmarked" : "of your")} deck{(AccountDecks.Count == 1 ? "" : "s")} loaded.";
+    }
+
+    private void OnSessionChanged(ArchidektSession? session)
+    {
+        IsSignedIn = session is not null;
+        SignedInAs = session?.Username;
+        _state.ProtectedArchidektSession = session is null ? null : SessionProtector.Protect(session);
+        _store.Save(_state);
+        if (session is null)
+        {
+            AccountDecks.Clear();
+            CanLoadMoreAccount = false;
+        }
+    }
 
     // Filters, mirroring the advanced options on archidekt.com/search/decks.
     public IReadOnlyList<FilterOption<int?>> FormatOptions { get; } =
@@ -84,7 +192,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ClearFilters()
     {
-        SelectedFormat = FormatOptions[0];
+        SelectedFormat = FormatOptions.First(f => f.Value == CommanderFormat);
         SelectedBracket = BracketOptions[0];
         SelectedColorMatch = ColorMatchOptions[0];
         SelectedSort = SortOptions[0];
@@ -134,11 +242,6 @@ public sealed partial class MainViewModel : ObservableObject
             : page.Decks.Count == 0 ? "No public or unlisted decks found."
             : ShowingText();
 
-        if (_state.OwnerUsername != OwnerUsername.Trim())
-        {
-            _state.OwnerUsername = OwnerUsername.Trim();
-            _store.Save(_state);
-        }
     });
 
     [RelayCommand]
@@ -158,7 +261,9 @@ public sealed partial class MainViewModel : ObservableObject
         item.Summary = deck.Summary;
         if (item.IsFavorite) SaveFavorites();
 
-        var decklist = TcgArenaDecklist.FromDeck(deck);
+        var (chooser, problem) = await Printings.CreateChooserAsync();
+        var decklist = TcgArenaDecklist.FromDeck(deck, chooser);
+        var artNote = problem + PrintingsViewModel.Summary(decklist);
         if (decklist.DeckTotal == 0)
         {
             Status = $"\"{deck.Summary.Name}\" has no cards in its main deck, so there's nothing to send.";
@@ -171,7 +276,8 @@ public sealed partial class MainViewModel : ObservableObject
         item.LastResult = $"Sent {DateTime.Now:HH:mm}  ·  {decklist.DeckTotal} cards";
         var sideboard = decklist.SideboardCount > 0 ? $" (+{decklist.SideboardCount} in the sideboard)" : "";
         Status = $"Opened \"{deck.Summary.Name}\" in {browser}. Click Import there. " +
-                 $"TCG Arena should show Total cards: {decklist.DeckTotal}{sideboard}; a lower number means some cards weren't recognised.";
+                 $"TCG Arena should show Total cards: {decklist.DeckTotal}{sideboard}; a lower number means some cards weren't recognised." +
+                 artNote;
     });
 
     [RelayCommand]
@@ -225,7 +331,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             await action();
         }
-        catch (DeckUnavailableException ex)
+        catch (Exception ex) when (ex is DeckUnavailableException or ArchidektSignInException or ArchidektSessionExpiredException)
         {
             Status = ex.Message;
         }

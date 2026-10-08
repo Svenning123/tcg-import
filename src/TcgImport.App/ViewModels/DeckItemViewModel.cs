@@ -26,6 +26,7 @@ public sealed partial class DeckItemViewModel(DeckSummary summary) : ObservableO
     public string Details => string.Join("  ·  ", new[]
     {
         Summary.FormatName,
+        Summary.IsPrivate ? "private" : null,
         Summary.Colors.Length > 0 ? Summary.Colors : null,
         string.IsNullOrEmpty(Summary.OwnerUsername) ? null : "by " + Summary.OwnerUsername,
         "updated " + Summary.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd"),

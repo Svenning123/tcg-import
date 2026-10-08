@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\TcgImport.Core\TcgImport.Core.csproj" />
@@ -14,6 +14,18 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AssemblyName>TcgImport</AssemblyName>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Version>0.3.0</Version>
+    <Product>TCG Import</Product>
+    <AssemblyTitle>TCG Import</AssemblyTitle>
+    <Description>Send Archidekt decks to TCG Arena</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\Fonts\mana.ttf" />
+    <None Include="Assets\Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" Link="Licenses\Mana-OFL.txt" />
+  </ItemGroup>
 
 </Project>

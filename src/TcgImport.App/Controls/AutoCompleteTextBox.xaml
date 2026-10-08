@@ -1,0 +1,27 @@
+<UserControl x:Class="TcgImport.App.Controls.AutoCompleteTextBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <Grid>
+        <TextBox x:Name="Input" Style="{StaticResource HintTextBox}"
+                 TextChanged="Input_TextChanged" PreviewKeyDown="Input_PreviewKeyDown" LostKeyboardFocus="Input_LostKeyboardFocus" />
+        <Popup x:Name="SuggestionPopup" PlacementTarget="{Binding ElementName=Input}" Placement="Bottom"
+               StaysOpen="False" AllowsTransparency="True" MinWidth="{Binding ActualWidth, ElementName=Input}">
+            <Border Background="{StaticResource CardBackground}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1"
+                    CornerRadius="0,0,4,4" Margin="0,0,6,6">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="6" ShadowDepth="2" Opacity="0.2" />
+                </Border.Effect>
+                <ListBox x:Name="SuggestionList" MaxHeight="260" BorderThickness="0" Focusable="False"
+                         PreviewMouseLeftButtonUp="SuggestionList_PreviewMouseLeftButtonUp">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="8,5" />
+                            <Setter Property="Cursor" Value="Hand" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

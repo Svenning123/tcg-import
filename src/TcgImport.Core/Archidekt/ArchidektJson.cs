@@ -18,8 +18,8 @@ public static class ArchidektJson
         var response = JsonSerializer.Deserialize<SearchResponse>(json, Options)
             ?? throw new FormatException("Empty search response from Archidekt.");
 
+        // Private decks only show up when signed in as their owner.
         var decks = response.Results
-            .Where(d => !d.Private)
             .Select(d => new DeckSummary(
                 d.Id,
                 d.Name,
@@ -27,13 +27,35 @@ public static class ArchidektJson
                 d.DeckFormat,
                 d.UpdatedAt,
                 ImageUrl(d.CustomFeatured, d.Featured),
-                ColorsFromCounts(d.Colors)))
+                ColorsFromCounts(d.Colors),
+                d.Private))
             .ToList();
 
         // Archidekt answers count -1 when a commander or card filter doesn't name an existing card.
         return response.Count < 0
             ? new DeckSearchPage([], 0, HasMore: false, UnknownCardName: true)
             : new DeckSearchPage(decks, response.Count, HasMore: response.Next is not null);
+    }
+
+    /// <summary>
+    /// Distinct card names from /api/cards/v2/. Archidekt also matches translated names, so names containing
+    /// the search text come first.
+    /// </summary>
+    public static IReadOnlyList<string> ParseCardNames(string json, string searchText, bool legendaryFirst)
+    {
+        var response = JsonSerializer.Deserialize<CardSearchResponse>(json, Options)
+            ?? throw new FormatException("Empty card search response from Archidekt.");
+        var query = searchText.Trim();
+
+        return response.Results
+            .Select(c => c.OracleCard)
+            .Where(o => o is { Name.Length: > 0 })
+            .DistinctBy(o => o!.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(o => legendaryFirst && (o!.SuperTypes?.Contains("Legendary", StringComparer.OrdinalIgnoreCase) ?? false))
+            .ThenByDescending(o => o!.Name.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(o => o!.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Select(o => o!.Name)
+            .ToList();
     }
 
     public static ArchidektDeck ParseDeck(string json)
@@ -46,7 +68,7 @@ public static class ArchidektJson
             .ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
         var cards = deck.Cards
             .Where(c => c.DeletedAt is null && c.Quantity > 0 && c.Card?.OracleCard?.Name is { Length: > 0 })
-            .Select(c => new DeckCard(c.Card!.OracleCard!.Name, c.Quantity, SectionOf(c, categories)))
+            .Select(c => new DeckCard(c.Card!.OracleCard!.Name, c.Quantity, SectionOf(c, categories), c.Card.Uid))
             .ToList();
 
         var colorIdentity = deck.Cards
@@ -60,7 +82,8 @@ public static class ArchidektJson
             deck.DeckFormat,
             deck.UpdatedAt,
             ImageUrl(deck.CustomFeatured, deck.Featured),
-            ColorsFromNames(colorIdentity));
+            ColorsFromNames(colorIdentity),
+            deck.Private);
 
         return new ArchidektDeck(summary, cards);
     }
@@ -136,6 +159,7 @@ public static class ArchidektJson
         public DateTimeOffset UpdatedAt { get; set; }
         public string? Featured { get; set; }
         public string? CustomFeatured { get; set; }
+        public bool Private { get; set; }
         public OwnerDto? Owner { get; set; }
         public List<CategoryDto> Categories { get; set; } = [];
         public List<CardEntryDto> Cards { get; set; } = [];
@@ -164,12 +188,20 @@ public static class ArchidektJson
 
     private sealed class CardDto
     {
+        /// <summary>Scryfall id of the chosen printing.</summary>
+        public string? Uid { get; set; }
         public OracleCardDto? OracleCard { get; set; }
+    }
+
+    private sealed class CardSearchResponse
+    {
+        public List<CardDto> Results { get; set; } = [];
     }
 
     private sealed class OracleCardDto
     {
         public string Name { get; set; } = "";
+        public List<string>? SuperTypes { get; set; }
         public List<string>? ColorIdentity { get; set; }
     }
 }

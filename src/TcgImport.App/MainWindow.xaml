@@ -4,9 +4,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:TcgImport.App.ViewModels"
+        xmlns:controls="clr-namespace:TcgImport.App.Controls"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="TCG Import · Archidekt → TCG Arena"
+        Icon="/Assets/app.ico"
         Width="960" Height="680" MinWidth="640" MinHeight="420"
         Background="{StaticResource WindowBackground}"
         WindowStartupLocation="CenterScreen">
@@ -125,21 +127,24 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Margin="0,0,8,8">
-                        <TextBlock Text="Commander (exact card name)" Style="{StaticResource FilterLabel}" />
-                        <TextBox Text="{Binding CommanderName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource HintTextBox}" />
+                        <TextBlock Text="Commander" Style="{StaticResource FilterLabel}" />
+                        <controls:AutoCompleteTextBox Text="{Binding CommanderName}" SuggestionProvider="{Binding CommanderSuggestions}"
+                                                      ToolTip="Start typing and pick the card; Archidekt needs the exact name." />
                     </StackPanel>
                     <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,8,8">
-                        <TextBlock Text="Contains card (exact card name)" Style="{StaticResource FilterLabel}" />
-                        <TextBox Text="{Binding CardName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource HintTextBox}" />
+                        <TextBlock Text="Contains card" Style="{StaticResource FilterLabel}" />
+                        <controls:AutoCompleteTextBox Text="{Binding CardName}" SuggestionProvider="{Binding CardSuggestions}"
+                                                      ToolTip="Start typing and pick the card; Archidekt needs the exact name." />
                     </StackPanel>
                     <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,8">
                         <TextBlock Text="Colours" Style="{StaticResource FilterLabel}" />
                         <StackPanel Orientation="Horizontal">
-                            <ToggleButton Content="W" ToolTip="White" IsChecked="{Binding White}" Style="{StaticResource ColorToggle}" Tag="#F8F1D8" />
-                            <ToggleButton Content="U" ToolTip="Blue" IsChecked="{Binding Blue}" Style="{StaticResource ColorToggle}" Tag="#B3D4EE" />
-                            <ToggleButton Content="B" ToolTip="Black" IsChecked="{Binding Black}" Style="{StaticResource ColorToggle}" Tag="#C9BFBB" />
-                            <ToggleButton Content="R" ToolTip="Red" IsChecked="{Binding Red}" Style="{StaticResource ColorToggle}" Tag="#F2B8A0" />
-                            <ToggleButton Content="G" ToolTip="Green" IsChecked="{Binding Green}" Style="{StaticResource ColorToggle}" Tag="#A9D3AB" />
+                            <!-- Glyphs from the Mana font: ms-w … ms-g; colours from its ms-cost styles. -->
+                            <ToggleButton Content="&#xE600;" ToolTip="White" AutomationProperties.Name="White" IsChecked="{Binding White}" Style="{StaticResource ManaToggle}" Tag="#F0F2C0" />
+                            <ToggleButton Content="&#xE601;" ToolTip="Blue" AutomationProperties.Name="Blue" IsChecked="{Binding Blue}" Style="{StaticResource ManaToggle}" Tag="#B5CDE3" />
+                            <ToggleButton Content="&#xE602;" ToolTip="Black" AutomationProperties.Name="Black" IsChecked="{Binding Black}" Style="{StaticResource ManaToggle}" Tag="#ACA29A" />
+                            <ToggleButton Content="&#xE603;" ToolTip="Red" AutomationProperties.Name="Red" IsChecked="{Binding Red}" Style="{StaticResource ManaToggle}" Tag="#DB8664" />
+                            <ToggleButton Content="&#xE604;" ToolTip="Green" AutomationProperties.Name="Green" IsChecked="{Binding Green}" Style="{StaticResource ManaToggle}" Tag="#93B483" />
                             <ComboBox ItemsSource="{Binding ColorMatchOptions}" SelectedItem="{Binding SelectedColorMatch}"
                                       Margin="8,0,0,0" MinWidth="150" VerticalContentAlignment="Center" />
                         </StackPanel>
@@ -197,6 +202,128 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Printings" DataContext="{Binding Printings}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Left" Margin="4,4,4,8">
+                        <Border Background="{StaticResource CardBackground}" BorderBrush="{StaticResource CardBorder}"
+                                BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,12">
+                            <StackPanel>
+                                <CheckBox Content="Keep Archidekt card art" IsChecked="{Binding KeepCardArt}" FontWeight="SemiBold" />
+                                <TextBlock Foreground="{StaticResource MutedText}" TextWrapping="Wrap" Margin="20,4,0,0"
+                                           Text="Sends the printing chosen for each card on Archidekt, so TCG Arena shows the same art. Change a card's printing on Archidekt and re-send to switch art. When off, TCG Arena picks the art." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="{StaticResource CardBackground}" BorderBrush="{StaticResource CardBorder}"
+                                BorderThickness="1" CornerRadius="6" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="Blocked sets" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock Foreground="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,12"
+                                           Text="Cards whose printing is from a blocked set get another printing: the closest older one, or else the closest newer one. Regular paper sets are preferred over promos, collectible extras and digital-only sets. A card that only exists in blocked sets keeps its printing." />
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <controls:AutoCompleteTextBox x:Name="BlockSetInput" Text="{Binding NewSetText}" MinimumLength="1"
+                                                                  SuggestionProvider="{Binding SetSuggestions}"
+                                                                  ToolTip="Set code (e.g. FIN) or part of a set name" />
+                                    <Button Grid.Column="1" Content="Block set" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0"
+                                            Command="{Binding AddBlockedSetCommand}" />
+                                </Grid>
+                                <CheckBox Content="Also block related sets (its Commander decks, promos, tokens and art cards)"
+                                          IsChecked="{Binding IncludeRelatedSets}" Margin="0,8,0,12" />
+
+                                <ItemsControl ItemsSource="{Binding BlockedSets}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:BlockedSetViewModel}">
+                                            <Border BorderBrush="{StaticResource CardBorder}" BorderThickness="0,1,0,0" Padding="0,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                                        <TextBlock Text="{Binding Detail}" Foreground="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Content="Unblock" VerticalAlignment="Center"
+                                                            Command="{Binding DataContext.RemoveBlockedSetCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="No blocked sets." Foreground="{StaticResource MutedText}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding BlockedSets.Count}" Value="0">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Archidekt account">
+                <Grid>
+                    <!-- Signed out -->
+                    <Border Visibility="{Binding IsSignedIn, Converter={StaticResource InverseBoolToVisibility}}"
+                            Background="{StaticResource CardBackground}" BorderBrush="{StaticResource CardBorder}"
+                            BorderThickness="1" CornerRadius="6" Padding="20" Width="380"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,24,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Sign in to Archidekt" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,4" />
+                            <TextBlock Text="See your own decks, including private ones, and the decks you've bookmarked."
+                                       Foreground="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,12" />
+                            <TextBlock Text="Username or email" Style="{StaticResource FilterLabel}" />
+                            <TextBox Text="{Binding SignInName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource HintTextBox}" Margin="0,0,0,8" />
+                            <TextBlock Text="Password" Style="{StaticResource FilterLabel}" />
+                            <PasswordBox x:Name="PasswordInput" Padding="6,5" KeyDown="PasswordInput_KeyDown" />
+                            <Button Content="Sign in" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
+                                    Margin="0,12,0,0" Click="SignIn_Click" />
+                            <TextBlock Foreground="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,12,0,0" FontSize="11"
+                                       Text="Your password is only sent to archidekt.com and is never saved. The app keeps Archidekt's sign-in token, encrypted for your Windows account." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Signed in -->
+                    <Grid Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center">
+                                <Run Text="Signed in as" Foreground="{StaticResource MutedText}" />
+                                <Run Text="{Binding SignedInAs, Mode=OneWay}" FontWeight="SemiBold" />
+                            </TextBlock>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <ComboBox ItemsSource="{Binding AccountViews}" SelectedItem="{Binding SelectedAccountView}"
+                                          MinWidth="140" VerticalContentAlignment="Center" />
+                                <Button Content="Refresh" Command="{Binding RefreshAccountCommand}" />
+                                <Button Content="Sign out" Command="{Binding SignOutCommand}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <ItemsControl ItemsSource="{Binding AccountDecks}" ItemTemplate="{StaticResource DeckRow}" />
+                                <Button Content="Load more" HorizontalAlignment="Center" Margin="0,0,0,8"
+                                        Command="{Binding LoadMoreAccountCommand}"
+                                        Visibility="{Binding CanLoadMoreAccount, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
                 </Grid>
             </TabItem>
         </TabControl>

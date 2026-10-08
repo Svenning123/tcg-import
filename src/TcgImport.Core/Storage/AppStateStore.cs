@@ -1,5 +1,6 @@
 using System.Text.Json;
 using TcgImport.Core.Archidekt;
+using TcgImport.Core.Printings;
 
 namespace TcgImport.Core.Storage;
 
@@ -7,11 +8,18 @@ public sealed class AppState
 {
     public List<DeckSummary> Favorites { get; set; } = [];
 
-    /// <summary>The Archidekt username last searched for, pre-filled on start.</summary>
-    public string? OwnerUsername { get; set; }
 
-    /// <summary>Browser executable to open TCG Arena with. Empty means auto-detect Firefox, then the default browser.</summary>
+    /// <summary>Browser executable to open TCG Arena with. Empty means the Windows default browser.</summary>
     public string? BrowserPath { get; set; }
+
+    /// <summary>Send each card's Archidekt printing so TCG Arena shows the same art.</summary>
+    public bool KeepCardArt { get; set; } = true;
+
+    /// <summary>Sets whose printings are swapped for another printing when sending to TCG Arena.</summary>
+    public List<BlockedSet> BlockedSets { get; set; } = [];
+
+    /// <summary>The Archidekt sign-in, encrypted by the app for the current Windows user. Never the password.</summary>
+    public string? ProtectedArchidektSession { get; set; }
 }
 
 /// <summary>Keeps <see cref="AppState"/> in a JSON file (by default %APPDATA%\TcgImport\state.json).</summary>
