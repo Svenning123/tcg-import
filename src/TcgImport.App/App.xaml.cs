@@ -16,7 +16,8 @@ public partial class App : Application
         base.OnStartup(e);
 
         var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("TcgImport/0.1 (+https://github.com/TobiasSaugbjerg/tcg-import)");
+        var version = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0";
+        http.DefaultRequestHeaders.UserAgent.ParseAdd($"TcgImport/{version}");
         var cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TcgImport");
 
         var viewModel = new MainViewModel(

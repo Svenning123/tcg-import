@@ -1,0 +1,59 @@
+# Builds the installer and publishes it as a GitHub release.
+# Start it from the Actions tab ("Release" → Run workflow, enter a version like 0.3.0),
+# or push a tag like v0.3.0.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, e.g. 0.3.0
+        required: true
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Pick version
+        id: version
+        shell: pwsh
+        run: |
+          $version = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}' }
+          $version = $version.TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like 1.2.3, got '$version'." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test --configuration Release
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $installer = ./build-installer.ps1 -Version '${{ steps.version.outputs.version }}' -RepoUrl '${{ github.server_url }}/${{ github.repository }}' | Select-Object -Last 1
+          # A fixed file name keeps .../releases/latest/download/TcgImport-Setup.exe pointing at the newest version.
+          Copy-Item $installer artifacts/TcgImport-Setup.exe
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v${{ steps.version.outputs.version }}'
+          gh release create $tag artifacts/TcgImport-Setup.exe `
+            --title "TCG Import ${{ steps.version.outputs.version }}" `
+            --notes-file .github/release-notes.md `
+            --target '${{ github.sha }}'

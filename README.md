@@ -23,7 +23,8 @@ The **Printings** tab controls card art:
 
 ## Install
 
-Run `TcgImport-Setup-<version>.exe` (see [Building the installer](#building-the-installer)). It installs for the
+Download **[TcgImport-Setup.exe](https://github.com/Svenning123/tcg-import/releases/latest/download/TcgImport-Setup.exe)**
+from the [latest release](https://github.com/Svenning123/tcg-import/releases/latest) and run it. It installs for the
 current user without admin rights and includes .NET, so nothing else is needed. The installer isn't code-signed, so
 Windows SmartScreen may warn about it: choose **More info → Run anyway**.
 
@@ -38,7 +39,13 @@ dotnet run --project src/TcgImport.App
 dotnet test
 ```
 
-### Building the installer
+### Releasing
+
+On GitHub, run **Actions → Release → Run workflow** with a version like `0.3.0` (or push a tag `v0.3.0`). It runs the
+tests, builds the installer and publishes a release with `TcgImport-Setup.exe` and the notes from
+`.github/release-notes.md`.
+
+### Building the installer locally
 
 Install [Inno Setup 6](https://jrsoftware.org/isinfo.php) once (`winget install --id JRSoftware.InnoSetup -e --scope user`),
 then run `.\build-installer.ps1`. It writes `artifacts\TcgImport-Setup-<version>.exe`; the version comes from
