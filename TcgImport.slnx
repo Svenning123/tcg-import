@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TcgImport.App/TcgImport.App.csproj" />
+    <Project Path="src/TcgImport.Core/TcgImport.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TcgImport.Core.Tests/TcgImport.Core.Tests.csproj" />
+  </Folder>
+</Solution>

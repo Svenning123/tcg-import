@@ -1,0 +1,215 @@
+<Window x:Class="TcgImport.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:TcgImport.App.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="TCG Import · Archidekt → TCG Arena"
+        Width="960" Height="680" MinWidth="640" MinHeight="420"
+        Background="{StaticResource WindowBackground}"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <DataTemplate x:Key="DeckRow" DataType="{x:Type vm:DeckItemViewModel}">
+            <Border Background="{StaticResource CardBackground}" BorderBrush="{StaticResource CardBorder}"
+                    BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,0,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Width="112" Height="72" CornerRadius="4" Background="{StaticResource Placeholder}" ClipToBounds="True">
+                        <Image Source="{Binding ImageUrl, TargetNullValue={x:Null}}" Stretch="UniformToFill" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Details}" Foreground="{StaticResource MutedText}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding LastResult}" Foreground="{StaticResource Success}" Margin="0,3,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LastResult}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Archidekt" ToolTip="Open this deck on archidekt.com"
+                                Command="{Binding DataContext.OpenOnArchidektCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}" />
+                        <Button Content="{Binding FavoriteLabel}" ToolTip="Keep this deck in your favorites"
+                                Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}" />
+                        <Button Content="Send to TCG Arena" Style="{StaticResource PrimaryButton}"
+                                ToolTip="Open TCG Arena's import page for this deck"
+                                Command="{Binding DataContext.SendCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                CommandParameter="{Binding}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <Style x:Key="EmptyHint" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Visibility" Value="Collapsed" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Search -->
+        <Grid Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Deck name, or an Archidekt deck link" Foreground="{StaticResource MutedText}" Margin="0,0,0,4" />
+                <TextBox Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource HintTextBox}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                <TextBlock Text="Archidekt username" Foreground="{StaticResource MutedText}" Margin="0,0,0,4" />
+                <TextBox Text="{Binding OwnerUsername, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource HintTextBox}" />
+            </StackPanel>
+            <Button Grid.Column="2" Content="Search" IsDefault="True" VerticalAlignment="Bottom" Margin="8,0,0,0"
+                    Style="{StaticResource PrimaryButton}" Command="{Binding SearchCommand}" />
+        </Grid>
+
+        <!-- Filters (same options as archidekt.com/search/decks) -->
+        <Expander Grid.Row="1" Header="Filters" Margin="0,0,0,12">
+            <Border Background="{StaticResource CardBackground}" BorderBrush="{StaticResource CardBorder}"
+                    BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,6,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Margin="0,0,8,8">
+                        <TextBlock Text="Format" Style="{StaticResource FilterLabel}" />
+                        <ComboBox ItemsSource="{Binding FormatOptions}" SelectedItem="{Binding SelectedFormat}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="0,0,8,8">
+                        <TextBlock Text="Commander bracket" Style="{StaticResource FilterLabel}" />
+                        <ComboBox ItemsSource="{Binding BracketOptions}" SelectedItem="{Binding SelectedBracket}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="0,0,0,8">
+                        <TextBlock Text="Sort by" Style="{StaticResource FilterLabel}" />
+                        <ComboBox ItemsSource="{Binding SortOptions}" SelectedItem="{Binding SelectedSort}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,8,8">
+                        <TextBlock Text="Commander (exact card name)" Style="{StaticResource FilterLabel}" />
+                        <TextBox Text="{Binding CommanderName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource HintTextBox}" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,8,8">
+                        <TextBlock Text="Contains card (exact card name)" Style="{StaticResource FilterLabel}" />
+                        <TextBox Text="{Binding CardName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource HintTextBox}" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,8">
+                        <TextBlock Text="Colours" Style="{StaticResource FilterLabel}" />
+                        <StackPanel Orientation="Horizontal">
+                            <ToggleButton Content="W" ToolTip="White" IsChecked="{Binding White}" Style="{StaticResource ColorToggle}" Tag="#F8F1D8" />
+                            <ToggleButton Content="U" ToolTip="Blue" IsChecked="{Binding Blue}" Style="{StaticResource ColorToggle}" Tag="#B3D4EE" />
+                            <ToggleButton Content="B" ToolTip="Black" IsChecked="{Binding Black}" Style="{StaticResource ColorToggle}" Tag="#C9BFBB" />
+                            <ToggleButton Content="R" ToolTip="Red" IsChecked="{Binding Red}" Style="{StaticResource ColorToggle}" Tag="#F2B8A0" />
+                            <ToggleButton Content="G" ToolTip="Green" IsChecked="{Binding Green}" Style="{StaticResource ColorToggle}" Tag="#A9D3AB" />
+                            <ComboBox ItemsSource="{Binding ColorMatchOptions}" SelectedItem="{Binding SelectedColorMatch}"
+                                      Margin="8,0,0,0" MinWidth="150" VerticalContentAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button Grid.Row="2" Grid.Column="2" Content="Clear filters" HorizontalAlignment="Right"
+                            Command="{Binding ClearFiltersCommand}" />
+                </Grid>
+            </Border>
+        </Expander>
+
+        <!-- Results and favorites -->
+        <TabControl Grid.Row="2" SelectedIndex="{Binding SelectedTab}" Background="Transparent" Padding="0,8,0,0">
+            <TabItem Header="Search results">
+                <Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{Binding Results}" ItemTemplate="{StaticResource DeckRow}" />
+                            <Button Content="Load more" HorizontalAlignment="Center" Margin="0,0,0,8"
+                                    Command="{Binding LoadMoreCommand}"
+                                    Visibility="{Binding CanLoadMore, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock Text="Search for a deck name, your Archidekt username, or paste a deck link.">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource EmptyHint}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Results.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <TextBlock>
+                        <Run Text="Favorites (" /><Run Text="{Binding Favorites.Count, Mode=OneWay}" /><Run Text=")" />
+                    </TextBlock>
+                </TabItem.Header>
+                <Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Favorites}" ItemTemplate="{StaticResource DeckRow}" />
+                    </ScrollViewer>
+                    <TextBlock Text="No favorites yet. Use ☆ Favorite on a search result to keep it here.">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource EmptyHint}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Favorites.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Status -->
+        <Grid Grid.Row="3" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center" />
+            <ProgressBar Grid.Column="1" Width="120" Height="6" Margin="12,0,0,0" IsIndeterminate="True"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+        </Grid>
+    </Grid>
+</Window>
